@@ -1,0 +1,87 @@
+#TODO: Add X-Ray
+# DeadLetterConfig
+Parameters:
+  
+  FileExchangeBucketName:
+    Type: String
+    Default: "alexandrecabdidate.se-file-exchange"
+
+Resources:
+  FileExchangeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration: 
+          -
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: !Ref FileExchangeBucketName
+      NotificationConfiguration:
+        LambdaConfigurations:
+        - Event: 's3:ObjectCreated:*'
+          Function: !GetAtt LinkGenerator.Arn
+
+  FileExchangeBucketPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LinkGenerator
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref "AWS::AccountId"
+      SourceArn: !Sub "arn:aws:s3:::${FileExchangeBucketName}"          
+    
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: LambdaCloudWatchLogsPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+      - PolicyName: FileExchangeBucketPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 's3:*'
+              Resource: !Sub "arn:aws:s3:::${FileExchangeBucketName}/*"
+            
+
+  LinkGenerator: 
+    Type: "AWS::Lambda::Function"
+    Properties: 
+      FunctionName: "LinkGenerator"
+      Handler: "index.lambda_handler"        
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import logging
+          import json
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              logger.info('S3 got event{}'.format(event))
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('S3 Lambda sender invoked')
+              }   
+      Runtime: "python3.6"
+      Timeout: 25
+      #TracingConfig:
+      #  Mode: "Active"

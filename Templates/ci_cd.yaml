@@ -16,17 +16,7 @@ Resources:
             ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
       BucketName: !Sub "${RootDomainName}-lambda-code"
-      
-  FileExchangeBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketEncryption:
-        ServerSideEncryptionConfiguration: 
-          -
-            ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      BucketName: !Sub "${RootDomainName}-file-exchange"
-      
+            
 Outputs:
   
   LambdaCodeBucket:
@@ -34,8 +24,3 @@ Outputs:
     Export:
       Name: LambdaCodeBucket
    
-  FileExchangeBucket:
-    Value: !Ref FileExchangeBucket
-    Export:
-      Name: FileExchangeBucket
-  
