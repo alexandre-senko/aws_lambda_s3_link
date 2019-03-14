@@ -1,6 +1,8 @@
-#TODO: Add X-Ray
-# DeadLetterConfig
-# Access log for S3
+#TODO: 
+# Add X-Ray to Lambda
+# DeadLetterConfig to Lambda
+# Make the FileExchangeBucket pubically available
+
 Parameters:
   
   FileExchangeBucketName:
@@ -31,10 +33,43 @@ Resources:
         Rules:
         - Id: ObjectExpirationRule
           ExpirationInDays: !Ref ExchangableObjectsTTL
-          Status: Enabled 
-            
-   
+          Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref FileExchangeBucketLogs
+        LogFilePrefix: _access_logs
           
+  FileExchangeBucketLogs:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:      
+        ServerSideEncryptionConfiguration: 
+          -
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: !Sub ${FileExchangeBucketName}-access-logs
+      AccessControl: LogDeliveryWrite
+      
+  FileExchangeBucketLogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref FileExchangeBucketLogs      
+      PolicyDocument: 
+        Statement: 
+           - 
+            Action:            
+              - "s3:*"
+            Effect: "Allow"
+            Resource: !Sub "arn:aws:s3:::${FileExchangeBucketName}-access-logs/*"
+            Principal: 
+              Service: "s3.amazonaws.com"
+           - 
+            Action: 
+              - "s3:*"
+            Effect: "Allow"
+            Resource: !Sub "arn:aws:s3:::${FileExchangeBucketName}-access-logs"
+            Principal: 
+              Service: "s3.amazonaws.com"
+                       
   FileExchangeBucketPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -73,8 +108,7 @@ Resources:
             - Effect: Allow
               Action:
                 - 's3:*'
-              Resource: !Sub "arn:aws:s3:::${FileExchangeBucketName}/*"
-            
+              Resource: !Sub "arn:aws:s3:::${FileExchangeBucketName}/*"            
 
   LinkGenerator: 
     Type: "AWS::Lambda::Function"
