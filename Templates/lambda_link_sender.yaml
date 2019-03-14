@@ -1,10 +1,17 @@
 #TODO: Add X-Ray
 # DeadLetterConfig
+# Access log for S3
 Parameters:
   
   FileExchangeBucketName:
     Type: String
     Default: "alexandrecabdidate.se-file-exchange"
+    
+  ExchangableObjectsTTL:
+    Type: Number
+    Description: Time to live files in storage. In days
+    Default: 1
+    
 
 Resources:
   FileExchangeBucket:
@@ -20,7 +27,14 @@ Resources:
         LambdaConfigurations:
         - Event: 's3:ObjectCreated:*'
           Function: !GetAtt LinkGenerator.Arn
-
+      LifecycleConfiguration:
+        Rules:
+        - Id: ObjectExpirationRule
+          ExpirationInDays: !Ref ExchangableObjectsTTL
+          Status: Enabled 
+            
+   
+          
   FileExchangeBucketPermission:
     Type: AWS::Lambda::Permission
     Properties:
