@@ -1,0 +1,39 @@
+Parameters:
+  
+  BaseEmail:
+    Description: Basic EMail address
+    Default: "alexandresenko@gmail.com"
+    Type: String
+    
+  ConfigSetName:
+    Description: Name of configuration set
+    Default: MainSender
+    Type: String
+    
+Resources:
+
+  ConfigSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Ref ConfigSetName
+  # TODO: 
+  # https://docs.aws.amazon.com/en_us/AWSCloudFormation/latest/UserGuide/aws-resource-ses-configurationseteventdestination.html  
+  #EmailsSendingLogs:
+  #  Type: AWS::SES::ConfigurationSetEventDestination
+  #  Properties:
+  #    ConfigurationSetName: !Ref ConfigSet
+  #    EventDestination:
+  #      Name: !Ref EventDestinationName
+  #      Enabled: true
+  #      MatchingEventTypes:
+  #        - !Ref EventType1
+  #        - !Ref EventType2
+  #        - !Ref EventType3
+  #      CloudWatchDestination:
+  #        DimensionConfigurations:
+  #          - DimensionName: !Ref DimensionName1
+  #            DimensionValueSource: !Ref DimensionValueSource1
+  #            DefaultDimensionValue: !Ref DefaultDimensionValue1
+  #          - DimensionName: !Ref DimensionName2
+  #            DimensionValueSource: !Ref DimensionValueSource2
+  #            DefaultDimensionValue: !Ref DefaultDimensionValue2

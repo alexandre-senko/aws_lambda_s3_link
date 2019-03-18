@@ -14,7 +14,22 @@ Parameters:
     Description: Time to live files in storage. In days
     Default: 1
     
-
+  EmailSender:
+    Description: "Verified SES E-Mail address"
+    Default: "alexander.senko@fastdev.se"
+    Type: String
+ 
+  EmailRecipient: 
+    Description: "Verified SES E-Mail address for the Sandbox or any other EMail for Normal mode"
+    Default: "alexandresenko@gmail.com"
+    Type: String
+    
+  EmailConfigurationSetName:
+    Description: "Configuration set name"
+    Default: "MainSender"
+    Type: String
+    
+    
 Resources:
   FileExchangeBucket:
     Type: AWS::S3::Bucket
@@ -109,22 +124,82 @@ Resources:
               Action:
                 - 's3:*'
               Resource: !Sub "arn:aws:s3:::${FileExchangeBucketName}/*"            
-
+      - PolicyName: EmailSendingPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'SES:SendEmail'
+                - 'SES:SendRawEmail'
+              Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+  
   LinkGenerator: 
     Type: "AWS::Lambda::Function"
     Properties: 
       FunctionName: "LinkGenerator"
-      Handler: "index.lambda_handler"        
+      Handler: "index.lambda_sender_handler"        
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        ZipFile: |
+        ZipFile: !Sub |
           import logging
           import json
+          import boto3
+          from botocore.exceptions import ClientError
+          
           logger = logging.getLogger()
           logger.setLevel(logging.INFO)
 
-          def lambda_handler(event, context):
+          def lambda_sender_handler(event, context):
               logger.info('S3 got event{}'.format(event))
+            
+
+              # TODO: Take it from config.
+              SUBJECT = "EMail from link generator"
+
+              # TODO: Take it from config
+              BODY_TEXT = ("Link generator\r\n"
+                           "This email was sent from the Link generator"
+                          )
+            
+              # TODO: Push it into the SES template
+              BODY_HTML = """<html>
+              <head></head>
+              <body>
+                <h1>Link generator</h1>
+                <p>This email was sent from the Link generator</p>
+              </body>
+              </html>
+                          """            
+
+              client = boto3.client('ses',region_name='${AWS::Region}')
+              
+              RECIPIENT = "${EmailRecipient}"
+              
+              response = client.send_email(
+                  Destination={
+                      'ToAddresses': [ RECIPIENT],
+                  },
+                  Message={
+                      'Body': {
+                          'Html': {
+                              'Charset': "UTF-8",
+                              'Data': BODY_HTML,
+                          },
+                          'Text': {
+                              'Charset': "UTF-8",
+                              'Data': BODY_TEXT,
+                          },
+                      },
+                      'Subject': {
+                          'Charset': "UTF-8",
+                          'Data': SUBJECT,
+                      },
+                  },
+                  Source='${EmailSender}',
+                  ConfigurationSetName="${EmailConfigurationSetName}",
+              )
+              
               return {
                   'statusCode': 200,
                   'body': json.dumps('S3 Lambda sender invoked')
@@ -133,3 +208,5 @@ Resources:
       Timeout: 25
       #TracingConfig:
       #  Mode: "Active"
+      
+#https://docs.aws.amazon.com/en_us/ses/latest/DeveloperGuide/send-using-sdk-python.html 
