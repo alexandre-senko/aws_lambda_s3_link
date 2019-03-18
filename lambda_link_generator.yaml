@@ -2,6 +2,7 @@
 #   DeadLetterConfig to Lambda - SNS + SQS
 #   Move template to SES templates
 #   Move constants to AWS Environment variables
+#   Split it into the 2 Lambdas with using the SQS
 
 Parameters:
   
