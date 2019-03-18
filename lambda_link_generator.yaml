@@ -138,7 +138,7 @@ Resources:
     Type: "AWS::Lambda::Function"
     Properties: 
       FunctionName: "LinkGenerator"
-      Handler: "index.lambda_sender_handler"        
+      Handler: "index.lambda_handler"        
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         ZipFile: !Sub |
@@ -150,50 +150,54 @@ Resources:
           logger = logging.getLogger()
           logger.setLevel(logging.INFO)
 
-          def lambda_sender_handler(event, context):
-              logger.info('S3 got event{}'.format(event))
+          def lambda_handler(event, context):
+              
+              bucket_name = event['Records'][0]['s3']['bucket']['name']              
+              file_name = event['Records'][0]['s3']['object']['key']    
+              
+              logger.info('S3 parsed event{}'.format(bucket_name + '/' + file_name ))
             
-
               # TODO: Take it from config.
-              SUBJECT = "EMail from link generator"
+              subject = "EMail from link generator"
 
               # TODO: Take it from config
-              BODY_TEXT = ("Link generator\r\n"
-                           "This email was sent from the Link generator"
-                          )
+              body_text = 'Bucket name is {Bucket}, file name is {File}'.replace('{Bucket}', bucket_name)
+              body_text = body_text.replace('{File}', file_name)               
+              
             
               # TODO: Push it into the SES template
-              BODY_HTML = """<html>
+              body_html = """<html>
               <head></head>
               <body>
                 <h1>Link generator</h1>
-                <p>This email was sent from the Link generator</p>
+                <p>{BODY_TEXT}</p>
               </body>
               </html>
-                          """            
+                          """
+              body_html = body_html.replace('{BODY_TEXT}', body_text)
 
               client = boto3.client('ses',region_name='${AWS::Region}')
               
-              RECIPIENT = "${EmailRecipient}"
+              recipient = "${EmailRecipient}"
               
               response = client.send_email(
                   Destination={
-                      'ToAddresses': [ RECIPIENT],
+                      'ToAddresses': [ recipient ],
                   },
                   Message={
                       'Body': {
                           'Html': {
                               'Charset': "UTF-8",
-                              'Data': BODY_HTML,
+                              'Data': body_html,
                           },
                           'Text': {
                               'Charset': "UTF-8",
-                              'Data': BODY_TEXT,
+                              'Data': body_text,
                           },
                       },
                       'Subject': {
                           'Charset': "UTF-8",
-                          'Data': SUBJECT,
+                          'Data': subject,
                       },
                   },
                   Source='${EmailSender}',
