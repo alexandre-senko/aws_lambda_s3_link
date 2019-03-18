@@ -1,7 +1,7 @@
-#TODO: 
-# Add X-Ray to Lambda
-# DeadLetterConfig to Lambda
-# Make the FileExchangeBucket pubically available
+# TODO: 
+#   DeadLetterConfig to Lambda - SNS + SQS
+#   Move template to SES templates
+#   Move constants to AWS Environment variables
 
 Parameters:
   
@@ -133,30 +133,35 @@ Resources:
                 - 'SES:SendEmail'
                 - 'SES:SendRawEmail'
               Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
   
   LinkGenerator: 
     Type: "AWS::Lambda::Function"
     Properties: 
       FunctionName: "LinkGenerator"
-      Handler: "index.lambda_handler"        
+      Handler: "index.lambda_link_handler"        
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         ZipFile: !Sub |
           import logging
           import json
           import boto3
+          
           from botocore.exceptions import ClientError
           from botocore.client import Config
           
           logger = logging.getLogger()
           logger.setLevel(logging.INFO)
+          
+          s3 = boto3.client('s3', config=Config(signature_version='s3v4'))
+          ses_client = boto3.client('ses',region_name='${AWS::Region}')
 
-          def lambda_handler(event, context):
+          def lambda_link_handler(event, context):
               
               bucket_name = event['Records'][0]['s3']['bucket']['name']              
               file_name = event['Records'][0]['s3']['object']['key']                  
-              
-              s3 = boto3.client('s3', config=Config(signature_version='s3v4'))
+                            
               link = s3.generate_presigned_url(
                 ClientMethod='get_object',
                   Params={
@@ -165,15 +170,15 @@ Resources:
                 },
                 ExpiresIn=18000 
               ) 
-              # TODO Get it from config              
+              # TODO Get it from config   
+              
               logger.info('S3 parsed event{}'.format(bucket_name + '/' + file_name ))                             
             
               # TODO: Take it from config.
               subject = "EMail from link generator"
 
               # TODO: Take it from config
-              body_text = """Link to <a href='{LINK}'>download</a>""".replace('{LINK}', link)
-              
+              body_text = """Link to <a href='{LINK}'>download</a>""".replace('{LINK}', link)              
             
               # TODO: Push it into the SES template
               body_html = """<html>
@@ -185,12 +190,10 @@ Resources:
               </html>
                           """
               body_html = body_html.replace('{BODY_TEXT}', body_text)
-
-              client = boto3.client('ses',region_name='${AWS::Region}')
-              
+                            
               recipient = "${EmailRecipient}"
               
-              response = client.send_email(
+              response = ses_client.send_email(
                   Destination={
                       'ToAddresses': [ recipient ],
                   },
@@ -220,9 +223,9 @@ Resources:
               }   
       Runtime: "python3.6"
       Timeout: 25
-      #TracingConfig:
-      #  Mode: "Active"
-
+      TracingConfig:
+        Mode: "Active"
+# https://github.com/aws-samples/aws-serverless-workshops/blob/master/DevOps/3_XRay/README.md
 # https://aws.amazon.com/ru/premiumsupport/knowledge-center/presigned-url-s3-bucket-expiration/
 # https://docs.aws.amazon.com/en_us/xray/latest/devguide/xray-services-lambda.html      
 # https://docs.aws.amazon.com/en_us/ses/latest/DeveloperGuide/send-using-sdk-python.html 
