@@ -10,12 +10,36 @@ Parameters:
     Default: MainSender
     Type: String
     
+  EmailTemplateName:
+    Description: "Name of E-Mail template for sending link"
+    Default: "LinkGeneratorTemplate"
+    Type: String
+    
 Resources:
 
   ConfigSet:
     Type: AWS::SES::ConfigurationSet
     Properties:
       Name: !Ref ConfigSetName
+  
+  Template:
+    Type: AWS::SES::Template
+    Properties:
+      Template:
+        TemplateName: !Ref EmailTemplateName
+        SubjectPart: "EMail from link generator"
+        TextPart: "Link to <a href='[{LINK}}'>download</a>"
+        HtmlPart: | 
+               "<html>
+                  <head></head>
+                  <body>
+                    <h1>Link generator</h1>
+                    <p>Link to <a href='[{LINK}}'>download</a></p>
+                  </body>
+               </html>"
+                          
+      
+
   # TODO: 
   # https://docs.aws.amazon.com/en_us/AWSCloudFormation/latest/UserGuide/aws-resource-ses-configurationseteventdestination.html  
   #EmailsSendingLogs:
@@ -37,3 +61,17 @@ Resources:
   #          - DimensionName: !Ref DimensionName2
   #            DimensionValueSource: !Ref DimensionValueSource2
   #            DefaultDimensionValue: !Ref DefaultDimensionValue2
+  
+Outputs:
+  
+  ConfigSetName:
+    Value: !Ref ConfigSetName
+    Export:
+      Name: ConfigSetName
+  
+  EmailTemplateName:
+    Value: !Ref EmailTemplateName
+    Export:
+      Name: EmailTemplateName    
+      
+  
