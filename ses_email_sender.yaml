@@ -1,18 +1,13 @@
 Parameters:
-  
-  BaseEmail:
-    Description: Basic EMail address
-    Default: "alexandresenko@gmail.com"
-    Type: String
     
   ConfigSetName:
     Description: Name of configuration set
     Default: MainSender
     Type: String
     
-  EmailTemplateName:
+  LinkDownloadTemplateName:
     Description: "Name of E-Mail template for sending link"
-    Default: "LinkGeneratorTemplate"
+    Default: "LinkDownloadTemplate"
     Type: String
     
 Resources:
@@ -22,19 +17,19 @@ Resources:
     Properties:
       Name: !Ref ConfigSetName
   
-  Template:
+  LinkTemplate:
     Type: AWS::SES::Template
     Properties:
       Template:
-        TemplateName: !Ref EmailTemplateName
+        TemplateName: !Ref LinkDownloadTemplateName
         SubjectPart: "EMail from link generator"
-        TextPart: "Link to <a href='[{LINK}}'>download</a>"
+        TextPart: "Link to <a href='{{LINK}}'>download</a>"
         HtmlPart: | 
                "<html>
                   <head></head>
                   <body>
                     <h1>Link generator</h1>
-                    <p>Link to <a href='[{LINK}}'>download</a></p>
+                    <p>Link to <a href='{{LINK}}'>download</a></p>
                   </body>
                </html>"
                           
@@ -69,9 +64,9 @@ Outputs:
     Export:
       Name: ConfigSetName
   
-  EmailTemplateName:
-    Value: !Ref EmailTemplateName
+  LinkDownloadTemplateName:
+    Value: !Ref LinkDownloadTemplateName
     Export:
-      Name: EmailTemplateName    
+      Name: LinkDownloadTemplateName    
       
   

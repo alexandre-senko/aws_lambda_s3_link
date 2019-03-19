@@ -1,8 +1,8 @@
 # TODO: 
 #   DeadLetterConfig to Lambda - SNS + SQS
-#   Move template to SES templates
 #   Move constants to AWS Environment variables
 #   Split it into the 2 Lambdas with using the SQS
+#   Add managed policies for the lambda execution role
 
 Parameters:
   
@@ -25,12 +25,11 @@ Parameters:
     Default: "alexandresenko@gmail.com"
     Type: String
     
-  EmailConfigurationSetName:
-    Description: "Configuration set name"
-    Default: "MainSender"
+  EmailTemplateLinkName:
+    Description: Name of template for the E-Mail with link
+    Default: "LinkDownloadTemplate"
     Type: String
-    
-    
+   
 Resources:
   FileExchangeBucket:
     Type: AWS::S3::Bucket
@@ -133,6 +132,7 @@ Resources:
               Action:
                 - 'SES:SendEmail'
                 - 'SES:SendRawEmail'
+                - 'SES:SendTemplatedEmail'
               Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
@@ -141,87 +141,64 @@ Resources:
     Type: "AWS::Lambda::Function"
     Properties: 
       FunctionName: "LinkGenerator"
-      Handler: "index.lambda_link_handler"        
+      Handler: "index.lambda_handler"        
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        ZipFile: !Sub |
-          import logging
-          import json
-          import boto3
+        ZipFile:
+          Fn::Sub:
+          - |
+            import logging
+            import json
+            import boto3
           
-          from botocore.exceptions import ClientError
-          from botocore.client import Config
+            from botocore.exceptions import ClientError
+            from botocore.client import Config
           
-          logger = logging.getLogger()
-          logger.setLevel(logging.INFO)
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
           
-          s3 = boto3.client('s3', config=Config(signature_version='s3v4'))
-          ses_client = boto3.client('ses',region_name='${AWS::Region}')
+            s3 = boto3.client('s3', config=Config(signature_version='s3v4'))
+            ses_client = boto3.client('ses',region_name='${AWS::Region}')
 
-          def lambda_link_handler(event, context):
+            def lambda_handler(event, context):
               
-              bucket_name = event['Records'][0]['s3']['bucket']['name']              
-              file_name = event['Records'][0]['s3']['object']['key']                  
+                bucket_name = event['Records'][0]['s3']['bucket']['name']              
+                file_name = event['Records'][0]['s3']['object']['key']                  
                             
-              link = s3.generate_presigned_url(
-                ClientMethod='get_object',
-                  Params={
-                   'Bucket': bucket_name,
-                   'Key': file_name
-                },
-                ExpiresIn=18000 
-              ) 
-              # TODO Get it from config   
+                link = s3.generate_presigned_url(
+                  ClientMethod='get_object',
+                    Params={
+                     'Bucket': bucket_name,
+                     'Key': file_name
+                  },
+                  ExpiresIn=18000 
+                ) 
+                # TODO Get it from config   
               
-              logger.info('S3 parsed event{}'.format(bucket_name + '/' + file_name ))                             
-            
-              # TODO: Take it from config.
-              subject = "EMail from link generator"
-
-              # TODO: Take it from config
-              body_text = """Link to <a href='{LINK}'>download</a>""".replace('{LINK}', link)              
-            
-              # TODO: Push it into the SES template
-              body_html = """<html>
-              <head></head>
-              <body>
-                <h1>Link generator</h1>
-                <p>{BODY_TEXT}</p>
-              </body>
-              </html>
-                          """
-              body_html = body_html.replace('{BODY_TEXT}', body_text)
-                            
-              recipient = "${EmailRecipient}"
+                # TODO Get it from config  
+                recipient = "${EmailRecipient}"
+                sender = '${EmailSender}'
+                
+                template_data = '{ \"LINK\":\"REPLACEMENT_LINK\" }'.replace('REPLACEMENT_LINK', link)
+                
+                logger.info('Template link is {}'.format(link)) 
               
-              response = ses_client.send_email(
+                #TODO Read response    
+                response = ses_client.send_templated_email(
                   Destination={
                       'ToAddresses': [ recipient ],
-                  },
-                  Message={
-                      'Body': {
-                          'Html': {
-                              'Charset': "UTF-8",
-                              'Data': body_html,
-                          },
-                          'Text': {
-                              'Charset': "UTF-8",
-                              'Data': body_text,
-                          },
-                      },
-                      'Subject': {
-                          'Charset': "UTF-8",
-                          'Data': subject,
-                      },
-                  },
-                  Source='${EmailSender}',
+                  },                   
+                  Template='${EmailTemplateLinkName}',
+                  TemplateData = template_data,
+                  Source = sender,
                   ConfigurationSetName="${EmailConfigurationSetName}",
-              )
+                )
               
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps('S3 Lambda sender invoked')
-              }   
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps('S3 Lambda sender invoked')
+                }
+          - EmailConfigurationSetName: !ImportValue ConfigSetName
       Runtime: "python3.6"
       Timeout: 25
       TracingConfig:
