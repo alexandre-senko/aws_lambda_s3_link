@@ -2,7 +2,6 @@ Parameters:
   
   FileExchangeBucketName:
     Type: String
-    Default: "alexandrecabdidate.se-file-exchange"
     
   ExchangableObjectsTTL:
     Type: Number
@@ -11,12 +10,10 @@ Parameters:
     
   EmailSender:
     Description: "Verified SES E-Mail address"
-    Default: "alexander.senko@fastdev.se"
     Type: String
  
   EmailRecipient: 
     Description: "Verified SES E-Mail address for the Sandbox or any other EMail for Normal mode"
-    Default: "alexandresenko@gmail.com"
     Type: String
     
   DeadLetterQueueAlarmTreshold:
