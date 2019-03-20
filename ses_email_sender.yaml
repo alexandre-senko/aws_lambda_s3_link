@@ -1,3 +1,5 @@
+#TODO: Add SNS notificator
+
 Parameters:
     
   ConfigSetName:
@@ -9,8 +11,23 @@ Parameters:
     Description: "Name of E-Mail template for sending link"
     Default: "LinkDownloadTemplate"
     Type: String
-    
+  
+  AdminAlarmEMail:
+    Description: 'EMail for sending alarms'
+    Default: alexandresenko@gmail.com
+    Type: String
+  
 Resources:
+
+  CommonAlarmTopic: 
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: "CommonAlarmNotification" 
+      TopicName: "CommonAlarmNotification"
+      Subscription: 
+        - 
+          Endpoint: !Ref AdminAlarmEMail
+          Protocol: "email"  
 
   ConfigSet:
     Type: AWS::SES::ConfigurationSet
@@ -58,6 +75,11 @@ Resources:
   #            DefaultDimensionValue: !Ref DefaultDimensionValue2
   
 Outputs:
+  
+  CommonAlarmTopic:
+    Value: !Ref CommonAlarmTopic 
+    Export:
+      Name: "CommonAlarmTopic"
   
   ConfigSetName:
     Value: !Ref ConfigSetName

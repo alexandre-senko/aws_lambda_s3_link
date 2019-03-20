@@ -1,6 +1,3 @@
-# TODO: 
-#   DeadLetterConfig to Lambda - SNS + SQS
-
 Parameters:
   
   FileExchangeBucketName:
@@ -21,6 +18,11 @@ Parameters:
     Description: "Verified SES E-Mail address for the Sandbox or any other EMail for Normal mode"
     Default: "alexandresenko@gmail.com"
     Type: String
+    
+  DeadLetterQueueAlarmTreshold:
+    Description: "Length of DeadLetterQueue, which leads to rising a CloudWatch Alarm"
+    Default: 5
+    Type: Number
     
 Resources:
   FileExchangeBucket:
@@ -126,8 +128,43 @@ Resources:
                 - 'SES:SendRawEmail'
                 - 'SES:SendTemplatedEmail'
               Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+      - PolicyName: DeadLetterQueuePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'SQS:*'
+              Resource: !GetAtt DeadLetterQueue.Arn
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+      
+  
+  DeadLetterQueue: 
+    Type: AWS::SQS::Queue
+    Properties: 
+      QueueName: "LinkGeneratorDeadLetterQueue"
+  
+  DeadLetterQueueDepthAlarm: 
+    Type: AWS::CloudWatch::Alarm
+    Properties: 
+      AlarmDescription: "Alarm if queue depth grows beyond treshold"
+      AlarmName: "DeadLetterQueueDepthAlarm"
+      Namespace: "AWS/SQS"
+      MetricName: "ApproximateNumberOfMessagesVisible"
+      Dimensions: 
+        - 
+          Name: "QueueName"
+          Value: !GetAtt DeadLetterQueue.QueueName
+      Statistic: "Sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      Threshold: !Ref DeadLetterQueueAlarmTreshold
+      ComparisonOperator: "GreaterThanThreshold"
+      AlarmActions: 
+        - !ImportValue CommonAlarmTopic
+      InsufficientDataActions: 
+        - !ImportValue CommonAlarmTopic
   
   LinkGenerator: 
     Type: "AWS::Lambda::Function"
@@ -135,6 +172,8 @@ Resources:
       FunctionName: "LinkGenerator"
       Handler: "index.lambda_generator_handler"        
       Role: !GetAtt LambdaExecutionRole.Arn
+      DeadLetterConfig:
+        TargetArn: !GetAtt DeadLetterQueue.Arn
       Environment:
         Variables:
           EmailRecipient: !Ref EmailRecipient
