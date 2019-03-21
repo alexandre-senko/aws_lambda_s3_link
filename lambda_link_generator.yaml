@@ -21,6 +21,11 @@ Parameters:
     Default: 5
     Type: Number
     
+  LinkExpirationPeriod:
+    Description: 'Seconds befor link to object expired'
+    Default: 18000
+    Type: Number
+    
 Resources:
   FileExchangeBucket:
     Type: AWS::S3::Bucket
@@ -175,7 +180,7 @@ Resources:
         Variables:
           EmailRecipient: !Ref EmailRecipient
           EmailSender: !Ref EmailSender
-          LinkExpirationPeriod: 18000
+          LinkExpirationPeriod: !Ref LinkExpirationPeriod
           EmailConfigurationSetName: !ImportValue ConfigSetName
           EmailTemplateLinkName: !ImportValue LinkDownloadTemplateName
       Code:
@@ -235,9 +240,3 @@ Resources:
       TracingConfig:
         Mode: "Active"
         
-# https://docs.aws.amazon.com/en_us/code-samples/latest/catalog/python-ses-ses_sendtemplatedemail.py.html
-# https://aws.amazon.com/ru/blogs/messaging-and-targeting/introducing-email-templates-and-bulk-sending/
-# https://github.com/aws-samples/aws-serverless-workshops/blob/master/DevOps/3_XRay/README.md
-# https://aws.amazon.com/ru/premiumsupport/knowledge-center/presigned-url-s3-bucket-expiration/
-# https://docs.aws.amazon.com/en_us/xray/latest/devguide/xray-services-lambda.html      
-# https://docs.aws.amazon.com/en_us/ses/latest/DeveloperGuide/send-using-sdk-python.html 
